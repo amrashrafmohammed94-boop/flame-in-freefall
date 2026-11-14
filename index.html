@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flame in Freefall</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="17" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="17" r="4.5" fill="currentColor"/></svg>
+    </div>
+    <div>
+      <h1>Flame in Freefall</h1>
+      <p class="tag">Fire safety insights from NASA microgravity combustion data</p>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="risk" aria-selected="true">Fire risk check</button>
+    <button role="tab" data-tab="explorer" aria-selected="false">1 · Investigations</button>
+    <button role="tab" data-tab="habitat">2 · Habitat ranking</button>
+    <button role="tab" data-tab="oxygen">3 · Oxygen risk</button>
+    <button role="tab" data-tab="insights">4 · Safety insights</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 0 RISK CHECK -->
+  <section id="risk" class="panel active">
+    <div class="intro">
+      <h2>Fire risk check</h2>
+      <p>Tell us where you are and what could burn. The system compares it with NASA microgravity fire tests and tells you the risk and what to do.</p>
+    </div>
+    <ol class="steps">
+      <li class="card step">
+        <div class="stepno">1</div>
+        <div class="stepbody">
+          <h3>Where are you?</h3>
+          <select id="loc" aria-label="Location"></select>
+          <div class="atm" id="locAtm"></div>
+          <div class="custom" id="customBox" hidden>
+            <label>Pressure (psi)<input id="cPsi" type="number" step="0.1" min="1" max="30" value="14.7"></label>
+            <label>Oxygen (%)<input id="cO2" type="number" step="0.5" min="5" max="100" value="21"></label>
+            <label>Gravity<select id="cG"><option value="micro">Microgravity</option><option value="partial">Partial (Moon/Mars)</option></select></label>
+          </div>
+        </div>
+      </li>
+      <li class="card step">
+        <div class="stepno">2</div>
+        <div class="stepbody">
+          <h3>What material could burn?</h3>
+          <input id="mat" list="matList" placeholder="Type a material, e.g. cotton, ethanol, propane, acrylic…" autocomplete="off" aria-label="Material">
+          <datalist id="matList"></datalist>
+          <div class="family" id="matFamily"></div>
+          <div class="statepick" role="radiogroup" aria-label="State of the material">
+            <span>State:</span>
+            <label><input type="radio" name="state" value="solid"> Solid</label>
+            <label><input type="radio" name="state" value="liquid"> Liquid</label>
+            <label><input type="radio" name="state" value="gas"> Gas</label>
+          </div>
+        </div>
+      </li>
+      <li class="card step">
+        <div class="stepno">3</div>
+        <div class="stepbody">
+          <h3>Confirm</h3>
+          <p class="sm" id="confirmText">Choose a location, a material and its state.</p>
+          <button id="go" class="primary" disabled>Confirm and assess risk</button>
+        </div>
+      </li>
+    </ol>
+    <div id="result" hidden></div>
+    <p class="note">Screening tool for the NASA Space Apps challenge, built from public NASA PSI data. It is not a certified flight procedure.</p>
+  </section>
+
+  <!-- 1 EXPLORER -->
+  <section id="explorer" class="panel">
+    <div class="intro">
+      <h2>Investigations explorer</h2>
+      <p>Every NASA microgravity combustion investigation named in the challenge, with the hardware, fuel, fire-safety area and data availability.</p>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search name, fuel, hardware…" aria-label="Search">
+      <select id="fArea" aria-label="Fire-safety area"><option value="">All areas</option><option>Prevention</option><option>Detection</option><option>Suppression</option></select>
+      <select id="fData" aria-label="Data status"><option value="">All data status</option><option value="In dashboard">Data in dashboard</option><option value="Check PSI">Check PSI</option><option value="Not yet">Future</option></select>
+    </div>
+    <div class="tablewrap"><table id="catTable"><thead><tr><th>Investigation</th><th>Hardware</th><th>Fuel / sample</th><th>Area</th><th>Data</th></tr></thead><tbody></tbody></table></div>
+    <p class="note" id="catCount"></p>
+  </section>
+
+  <!-- 2 HABITAT -->
+  <section id="habitat" class="panel">
+    <div class="intro">
+      <h2>Habitat relevance ranking</h2>
+      <p>Pick a crew habitat to see its atmosphere and the investigations most relevant to it.</p>
+    </div>
+    <div class="chips" id="habChips"></div>
+    <div class="grid2">
+      <div class="card" id="atmCard"></div>
+      <div class="card"><h3>Nitrogen around a flame vs Earth</h3><canvas id="n2Chart" height="190"></canvas><p class="note">Nitrogen absorbs heat and dilutes oxygen. Less nitrogen means a hotter fire that starts more easily.</p></div>
+    </div>
+    <h3 class="sub">Most relevant investigations</h3>
+    <ol class="rank" id="rankList"></ol>
+    <p class="note">Relevance scores (0–3) are the team's assessment based on oxygen level, pressure, gravity and scale of each investigation. They are editable in <code>data/catalog.json</code>.</p>
+  </section>
+
+  <!-- 3 OXYGEN -->
+  <section id="oxygen" class="panel">
+    <div class="intro">
+      <h2>Oxygen risk explorer</h2>
+      <p>NASA FLEX experiment: 273 valid ISS tests burning single fuel droplets at different oxygen levels, pressures and diluent gases.</p>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card"><h3>Flames that went out by themselves, by oxygen level</h3><canvas id="bandChart" height="220"></canvas></div>
+      <div class="card"><h3>Burning rate vs oxygen</h3><canvas id="kChart" height="220"></canvas><p class="note">K = burning-rate constant (mm²/s). Higher K = fuel burns faster.</p></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Extinguishing gases compared at equal oxygen</h3><canvas id="dilChart" height="220"></canvas><p class="note">Share of tests where the flame went out by itself. Small samples in some bands.</p></div>
+      <div class="card predictor">
+        <h3>Will the flame go out by itself?</h3>
+        <label>Oxygen <output id="o2Out"></output><input id="o2" type="range" min="12" max="40" step="1" value="21"></label>
+        <label>Pressure <output id="pOut"></output><input id="p" type="range" min="0.5" max="3" step="0.1" value="1"></label>
+        <div class="row">
+          <label>Diluent<select id="dil"><option value="N2">Nitrogen only</option><option value="CO2">CO₂</option><option value="He">Helium</option></select></label>
+          <label>Fuel<select id="fuel"><option value="Methanol">Methanol</option><option value="Heptane">Heptane</option></select></label>
+        </div>
+        <div class="presets"><button data-o2="21" data-p="1">Earth / ISS</button><button data-o2="34" data-p="0.56">Moon base</button><button data-o2="26" data-p="0.69">Lunar lander</button></div>
+        <div class="gauge"><div class="gbar"><div id="gfill"></div></div><div class="gval" id="gval"></div></div>
+        <p id="gmsg" class="gmsg"></p>
+        <p class="note" id="modelNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 INSIGHTS -->
+  <section id="insights" class="panel">
+    <div class="intro">
+      <h2>Fire safety insights</h2>
+      <p>Each lesson turns a data finding into a design decision: <b>finding → meaning → recommendation</b>.</p>
+    </div>
+    <div class="chips" id="areaChips"></div>
+    <div class="lessons" id="lessons"></div>
+    <div class="card sources">
+      <h3>Sources</h3>
+      <ul>
+        <li>NASA Space Apps Challenge 2026, “Flame in Freefall” challenge statement.</li>
+        <li>NASA PSI FLEX experimental table (PSI-69), DOI 10.60555/mbq8-0451, CC0.</li>
+        <li>NASA PSI BASS-II experimental table (PSI-25), DOI 10.60555/4qc4-de67, CC0.</li>
+        <li>Norcross &amp; Walton, “Moon to Mars: Exploration Atmosphere”, NASA, 2024 (NTRS 20240003211).</li>
+        <li>Abercromby, NASA decompression sickness strategic plan, AsMA 2022 (NTRS 20220005709).</li>
+      </ul>
+      <p class="note">Rover and Mars atmospheres are assumed equal to the Moon-base exploration atmosphere. FLEX test C11M201 (pressure recorded as 0) is excluded.</p>
+    </div>
+  </section>
+</main>
+
+<footer>Built for NASA Space Apps Challenge 2026 · Data: NASA Physical Science Informatics</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script src="risk.js"></script>
+</body>
+</html>
