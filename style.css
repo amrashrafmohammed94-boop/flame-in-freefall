@@ -90,3 +90,13 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:20px}
 .card h4{margin:12px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
 [hidden]{display:none!important}
 .actions.plain{list-style:none;padding-left:0}.actions.idea li{border-left:3px solid var(--blue);padding-left:10px}
+.cov{margin-top:10px}.covbar{height:8px;background:#E6E2DC;border-radius:4px;overflow:hidden;max-width:320px;margin:4px 0}.covbar div{height:100%;background:var(--blue)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.secondary{font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border:1px solid var(--ink);border-radius:6px;background:var(--surface);color:var(--ink);cursor:pointer}
+.secondary:hover{background:var(--ink);color:#fff}
+#compareBox{margin-bottom:16px}tr.cur td{background:#FFF8E1;font-weight:600}
+.rk{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12.5px;font-weight:700;color:#fff}.rk.high{background:#C62828}.rk.medium{background:#E08A00}.rk.low{background:#2E7D4F}
+.whatif{margin-bottom:16px}.wl{display:block;font-size:13px;color:var(--muted);max-width:520px}.wl output{float:right;font-weight:700;color:var(--ink)}.wl input{width:100%;accent-color:var(--accent)}
+.wires{margin:8px 0 10px;font-size:15px}.wires .sm{display:block;margin-top:4px}.wichart{max-width:720px}
+.about h3{margin-top:18px}.about p,.about li{max-width:820px}
+.riskhead .covtxt{font-size:15px;display:inline}
