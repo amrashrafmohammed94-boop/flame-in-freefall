@@ -6,7 +6,11 @@ const PSI_PER_ATM = 14.696;
 const LEVELS = ['Low', 'Medium', 'High'];
 
 /* ---------- step 1: location ---------- */
-$('#loc').innerHTML = '<option value="">Select your location…</option>' + D.locations.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+const opt = l => `<option value="${l.id}">${esc(l.name.replace(/^Earth – /, ''))}</option>`;
+$('#loc').innerHTML = '<option value="">Select your location…</option>' +
+  `<optgroup label="Space">${D.locations.filter(l => l.gravity !== 'earth' && l.id !== 'custom').map(opt).join('')}</optgroup>` +
+  `<optgroup label="Earth (oxygen-enriched or sealed spaces)">${D.locations.filter(l => l.gravity === 'earth').map(opt).join('')}</optgroup>` +
+  `<optgroup label="Other">${D.locations.filter(l => l.id === 'custom').map(opt).join('')}</optgroup>`;
 function currentEnv() {
   const l = D.locations.find(x => x.id === $('#loc').value);
   if (!l) return null;
@@ -142,10 +146,14 @@ function assess(e, m, typed, st) {
   else cov = !m ? 10 : m.solid === 'battery' ? 0 : (o2 <= 0.23 && atm >= 0.9) ? 60 : 25;
   if (flags.some(f => f.startsWith('Outside'))) cov -= 25;
   if (e.gravity === 'partial') cov -= 20;
+  if (e.gravity === 'earth') cov -= 30;
+  if (m && m.nodata) cov = Math.min(cov - 30, 35);
   cov = Math.max(0, Math.min(100, cov));
 
   if (base == null) base = pExt >= 0.7 ? 'Low' : pExt >= 0.3 ? 'Medium' : 'High';
   reasons.unshift(`Predicted chance the fire goes out by itself: ${Math.round(pExt * 100)}% → base risk ${base}.`);
+  if (m && m.nodata) { reasons.push(m.nodata); }
+  if (e.gravity === 'earth') flags.push('Earth gravity (1 g): the NASA tests ran in microgravity. On Earth hot gas rises and feeds the flame, so fires usually grow faster; the data shows the oxygen trend, not Earth burn rates.');
   if (e.gravity === 'partial') flags.push(`Partial gravity (${e.g}): NASA has no fire data yet (LUCI and FM2 planned). Partial gravity may feed a flame more than microgravity.`);
   if (e.o2 >= 0.99) flags.push('Pure oxygen (spacesuit / Apollo 1 conditions): no microgravity data; most materials burn readily.');
   let level = LEVELS.indexOf(base);
@@ -179,6 +187,16 @@ function actions(r) {
            : ' Above 25% O₂, CO₂ alone stopped 0 of 6 FLEX flames: always combine it with oxygen and air-flow isolation.');
   const srcB = isBatt ? 'Stop charging and remove power; do not touch or open the hot pack; keep it away from other materials.' : src;
   const agentB = isBatt ? 'Water-mist extinguisher: it cools the cells (ISS practice for lithium-battery fires). CO₂ alone does not cool the battery, so it can reignite.' : agent;
+  if (e.gravity === 'earth') {
+    const E = [];
+    E.push(['1 · Raise the alarm', 'Activate the fire alarm and call the fire service / emergency team.']);
+    E.push(['2 · Shut off the oxygen', e.id.startsWith('hbo') ? 'Stop oxygen flow to the chamber and start the emergency fire-suppression (deluge / water) system if fitted.' : e.id === 'hosp' ? 'Close the zone oxygen valve or turn off the patient oxygen supply; remove the mask or cannula if it is burning.' : 'Shut off any oxygen or fuel supply feeding the fire.']);
+    E.push(['3 · Remove people from danger', e.id === 'sub' ? 'A submarine cannot be left at depth: isolate the compartment, put on emergency breathing masks and fight the fire from outside the hot zone.' : e.id === 'aircraft' ? 'Move passengers away from the fire; cabin crew fight it while the flight crew prepare to divert and land.' : 'Move patients and staff out of the room or chamber and close the door.']);
+    E.push(['4 · Extinguish', srcB + ' ' + (isBatt ? 'Use water or water mist to cool a battery.' : 'Use the extinguisher type approved for the area (water mist or CO₂ for electrical equipment).')]);
+    E.push(['5 · Ventilate only after the fire is out', 'Opening doors or turning on fans earlier feeds the fire with fresh oxygen (Saffire-I: air flow with the flame made it burn 6× longer).']);
+    if (r.o2 > 0.235) E.push(['Oxygen-enriched area rule', `At ${(r.o2 * 100).toFixed(0)}% O₂, FLEX shows flames rarely go out by themselves: no open flames, sparks or petroleum products; fire-retardant bedding and clothing only.`]);
+    return {steps: E, ideas: [['Same tool, Earth use', 'Hospitals, hyperbaric centres, submarines and aircraft can use the same check to rate materials before they enter an oxygen-enriched space.']]};
+  }
   if (e.id === 'suit') {
     return {steps: [['Prevention is the only defence', 'Inside a 100% O₂ suit there is no way to fight a fire: no ignition sources, no unapproved materials, no grease or oil near O₂ fittings.'],
       ['Approve every material at 100% O₂', 'NASA has no microgravity fire data at suit conditions; treat any flammable material as High risk.']], ideas: []};
