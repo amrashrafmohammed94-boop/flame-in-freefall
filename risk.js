@@ -120,7 +120,7 @@ function assess(e, m, typed, st) {
     if (!m) reasons.push('Unknown gas: assessed with the hydrocarbon gas results (ethane, propane, butane).');
   } else {
     const cls = m ? m.solid : 'unknown';
-    const map = {spreads: [0.2, 'Medium'], slow: [0.35, 'Medium'], nospread: [0.85, 'Low'], smoke: [0.6, 'Low'], unknown: [0.3, 'Medium']};
+    const map = {spreads: [0.2, 'Medium'], slow: [0.35, 'Medium'], nospread: [0.85, 'Low'], smoke: [0.6, 'Low'], unknown: [0.3, 'Medium'], battery: [0.05, 'High']};
     pExt = map[cls][0];
     base = map[cls][1];
     if (m) evidence.push(`${m.name}: ${m.note} (${m.source})`); else reasons.push('Unknown solid: not tested by NASA, assumed to spread like cotton fabric.');
@@ -128,10 +128,21 @@ function assess(e, m, typed, st) {
     time = cls === 'spreads' ? 'Saffire: a 29 cm strip burned out in 115–145 s; a 94 cm sheet burned 70 s (air against the flame) to 420 s (air with the flame).'
       : cls === 'slow' ? 'Saffire-II: PMMA kept burning slowly for 600–900 s, flame anchored at its base.'
       : cls === 'nospread' ? 'Saffire-II: did not spread after ignition at ~22% O₂.'
-      : cls === 'smoke' ? 'Tested by overheating (smoke), not by open flame.' : 'No NASA timing data.';
-    if (o2 > 0.23 || atm < 0.9) flags.push('No NASA solid-material fire data at this oxygen level or pressure; FLEX and CFI-G show flames persist longer at higher O₂.');
+      : cls === 'smoke' ? 'Tested by overheating (smoke), not by open flame.'
+      : cls === 'battery' ? 'Thermal runaway can continue for minutes and cells can reignite after the flame is out; no PSI timing data.' : 'No NASA timing data.';
+    if (cls === 'battery') reasons.push('No NASA PSI fire data for batteries: rated High by rule, because a battery fire heats itself and does not need cabin oxygen to continue.');
+    if (cls !== 'battery' && (o2 > 0.23 || atm < 0.9)) flags.push('No NASA solid-material fire data at this oxygen level or pressure; FLEX and CFI-G show flames persist longer at higher O₂.');
     if (cls === 'smoke') reasons.push('Main hazard is smoke and toxic gases from overheating (SAME/SAME-R).');
   }
+
+  // 4) how well NASA data covers this case (0–100)
+  let cov;
+  if (st === 'liquid') { const md = knnFlex(o2, atm, m && m.model === 'Methanol' ? 'Methanol' : 'Heptane', 'N2 only').meanDist; cov = md < 0.5 ? 100 : md < 1 ? 80 : md < 2 ? 55 : 30; if (!m) cov -= 20; }
+  else if (st === 'gas') cov = (o2 >= 0.18 && o2 <= 0.40 && bar >= 0.4 && bar <= 3.3) ? 70 : 30;
+  else cov = !m ? 10 : m.solid === 'battery' ? 0 : (o2 <= 0.23 && atm >= 0.9) ? 60 : 25;
+  if (flags.some(f => f.startsWith('Outside'))) cov -= 25;
+  if (e.gravity === 'partial') cov -= 20;
+  cov = Math.max(0, Math.min(100, cov));
 
   if (base == null) base = pExt >= 0.7 ? 'Low' : pExt >= 0.3 ? 'Medium' : 'High';
   reasons.unshift(`Predicted chance the fire goes out by itself: ${Math.round(pExt * 100)}% → base risk ${base}.`);
@@ -140,7 +151,7 @@ function assess(e, m, typed, st) {
   let level = LEVELS.indexOf(base);
   if (flags.length) { level = Math.min(2, level + 1); reasons.push('Raised one level because the conditions are not covered by NASA data (precaution).'); }
   if (e.o2 >= 0.99) level = 2;
-  return {e, m, typed, st, pExt, basis: st === 'solid' ? 'estimate from how this material class behaved in Saffire' : 'from similar NASA tests', level: LEVELS[level], reasons, flags, evidence, time, gasAdvice, o2, atm};
+  return {e, m, typed, st, pExt, cov, basis: (m && m.solid === 'battery') ? 'rule-based (no NASA test data)' : st === 'solid' ? 'estimate from how this material class behaved in Saffire' : 'from similar NASA tests', level: LEVELS[level], reasons, flags, evidence, time, gasAdvice, o2, atm};
 }
 
 /* ---------- safety actions linked to the risk level ----------
@@ -161,10 +172,13 @@ function actions(r) {
   const src = r.st === 'gas' ? 'Close the gas valve / isolate the line: in CFI-G every persistent flame burned until the gas flow was cut.'
     : r.st === 'liquid' ? 'Cap the container and remove power from nearby heaters; free droplets keep burning as floating spheres.'
     : 'Remove power from the item or rack: heat source off is the first ISS response step.';
+  const isBatt = r.m && r.m.solid === 'battery';
   const enclosed = r.st !== 'solid' || (r.m && ['smoke', 'unknown'].includes(r.m.solid));
   const agent = 'CO₂ extinguisher for fires inside a rack or equipment (wear the breathing apparatus while discharging CO₂); water-mist extinguisher for open-cabin fires and lithium-battery fires (ISS practice).' +
     (lowO2 ? (r.gasAdvice && r.gasAdvice.length ? ` FLEX at this O₂: ${r.gasAdvice.map(g => `${g.gas} ${Math.round(g.p * 100)}% self-extinction`).join(', ')} vs ${Math.round(r.pExt * 100)}% in plain air.` : ' FLEX: CO₂ improved self-extinction up to 24% O₂.')
            : ' Above 25% O₂, CO₂ alone stopped 0 of 6 FLEX flames: always combine it with oxygen and air-flow isolation.');
+  const srcB = isBatt ? 'Stop charging and remove power; do not touch or open the hot pack; keep it away from other materials.' : src;
+  const agentB = isBatt ? 'Water-mist extinguisher: it cools the cells (ISS practice for lithium-battery fires). CO₂ alone does not cool the battery, so it can reignite.' : agent;
   if (e.id === 'suit') {
     return {steps: [['Prevention is the only defence', 'Inside a 100% O₂ suit there is no way to fight a fire: no ignition sources, no unapproved materials, no grease or oil near O₂ fittings.'],
       ['Approve every material at 100% O₂', 'NASA has no microgravity fire data at suit conditions; treat any flammable material as High risk.']], ideas: []};
@@ -172,11 +186,12 @@ function actions(r) {
   S.push(['1 · WARN: raise the fire alarm', 'Press the alarm or call it out; on the ISS a smoke alarm also stops the fans, the gas feeds and oxygen generation automatically.']);
   S.push(['2 · Confirm air flow is stopped', `Ventilation fans and O₂ supply OFF in this module. Saffire-I: air flowing with the flame made it burn 6× longer (420 s vs 70 s).`]);
   if (r.level !== 'Low') S.push(['3 · GATHER at the safe point', `Crew meet at ${refuge(e)}. Bring the handheld combustion-products analyser to monitor the air.`]);
-  S.push([`${r.level === 'Low' ? '3' : '4'} · WORK step 1: isolate the source`, src]);
+  S.push([`${r.level === 'Low' ? '3' : '4'} · WORK step 1: isolate the source`, srcB]);
   if (r.level !== 'Low') {
     S.push(['5 · Protect breathing', 'Respirator with fire cartridge for work near the fire; the oxygen breathing apparatus only to move away or when using CO₂ (it adds O₂ near the fire).']);
-    S.push(['6 · WORK step 2: extinguish', agent]);
-  } else S.push(['4 · Keep an extinguisher in hand', agent]);
+    S.push(['6 · WORK step 2: extinguish', agentB]);
+  } else S.push(['4 · Keep an extinguisher in hand', agentB]);
+  if (isBatt) S.push(['Watch for reignition', 'Keep cooling and watching the battery for at least several minutes; cells can flare up again after the flame is out.']);
   if (r.level === 'High') {
     S.push(['7 · WORK step 3: power down the module', 'Partial, then full power-down of the module if the fire continues (ISS escalation order).']);
     S.push(['8 · Last resort: isolate and retreat', `Leave the module, close its hatch, and stay at ${refuge(e)}. The module is sealed off and its air is cleaned later.`]);
@@ -198,14 +213,30 @@ function actions(r) {
 }
 
 /* ---------- result view ---------- */
+function covLabel(c) { return c >= 70 ? 'High' : c >= 40 ? 'Medium' : 'Low'; }
+let lastR = null, whatIfChart = null;
 function renderResult(r) {
+  lastR = r;
   const p = Math.round(r.pExt * 100), AC = actions(r), A = AC.steps, cls = r.level.toLowerCase();
+  const showWhatIf = r.e.id !== 'suit';
   $('#result').innerHTML = `
   <div class="riskhead ${cls}">
     <div><span class="lbl">Risk level</span><b>${r.level}</b></div>
     <div><span class="lbl">Will the fire go out by itself?</span><b>${p >= 70 ? 'Likely' : p >= 30 ? 'Uncertain' : 'Unlikely'}</b><span class="sub">${p}% chance, ${esc(r.basis)}</span></div>
-    <div><span class="lbl">How long can it burn?</span><span class="sub2">${esc(r.time)}</span></div>
+    <div><span class="lbl">How long can it burn?</span><span class="sub2">${esc(r.time)}</span>
+      <div class="cov"><span class="lbl">NASA data coverage: <b class="covtxt">${covLabel(r.cov)}</b></span><div class="covbar"><div style="width:${r.cov}%"></div></div>
+      <span class="sub">How close your case is to real NASA tests (${r.cov}/100)</span></div></div>
   </div>
+  <div class="toolbar">
+    <button class="secondary" id="btnCompare">Compare all habitats</button>
+    <button class="secondary" id="btnPrint">Print emergency card</button>
+  </div>
+  <div id="compareBox" hidden></div>
+  ${showWhatIf ? `<div class="card whatif"><h3>What if the oxygen level changed?</h3>
+    <p class="sm">Move the slider to see how the risk for <b>${esc(r.m ? r.m.name : r.typed)}</b> changes at ${r.e.psi.toFixed(1)} psi. The dashed lines are the risk limits (30% and 70%).</p>
+    <label class="wl">Oxygen <output id="wiOut"></output><input id="wiO2" type="range" min="12" max="40" step="1" value="${Math.min(40, Math.max(12, Math.round(r.o2 * 100)))}"></label>
+    <div class="wires" id="wiRes"></div>
+    <div class="wichart"><canvas id="wiChart" height="200"></canvas></div></div>` : ''}
   <div class="grid2">
     <div class="card"><h3>Response: Warn · Gather · Work</h3><p class="sm">Follows the ISS fire response order (NASA). You cannot leave a spacecraft: the last resort is to seal the module and move to the safe point.</p><ul class="actions plain">${A.map(([t, w]) => `<li><b>${esc(t)}</b><span>${esc(w)}</span></li>`).join('')}</ul>${AC.ideas.length ? `<h4>New ideas for this habitat (concepts, not current procedure)</h4><ul class="actions plain idea">${AC.ideas.map(([t, w]) => `<li><b>${esc(t)}</b><span>${esc(w)}</span></li>`).join('')}</ul>` : ''}</div>
     <div class="card"><h3>Why this result</h3>
@@ -215,6 +246,60 @@ function renderResult(r) {
     </div>
   </div>`;
   $('#result').hidden = false;
+  $('#btnCompare').addEventListener('click', () => renderCompare(r));
+  $('#btnPrint').addEventListener('click', () => printCard(r, A));
+  if (showWhatIf) setupWhatIf(r);
   $('#result').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* 2) same material in every habitat */
+function renderCompare(r) {
+  const rows = D.locations.filter(l => l.id !== 'custom').map(l => ({l, a: assess(l, r.m, r.typed, r.st)}));
+  const box = $('#compareBox');
+  box.innerHTML = `<div class="card"><h3>${esc(r.m ? r.m.name : r.typed)} (${r.st}) in every habitat</h3>
+    <div class="tablewrap"><table><thead><tr><th>Habitat</th><th>Pressure</th><th>O₂</th><th>Gravity</th><th>Chance it goes out by itself</th><th>Data coverage</th><th>Risk</th></tr></thead><tbody>
+    ${rows.map(({l, a}) => `<tr${l.id === r.e.id ? ' class="cur"' : ''}><td>${esc(l.name)}</td><td>${l.psi} psi</td><td>${Math.round(l.o2 * 1000) / 10}%</td><td>${esc(l.g)}</td><td>${Math.round(a.pExt * 100)}%</td><td>${covLabel(a.cov)}</td><td><span class="rk ${a.level.toLowerCase()}">${a.level}</span></td></tr>`).join('')}
+    </tbody></table></div><p class="note">Same rules as above for every row. Rover and Mars use the Moon-base atmosphere (assumed).</p></div>`;
+  box.hidden = false;
+  box.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* 3) what-if oxygen slider */
+function setupWhatIf(r) {
+  const at = o2 => assess({...r.e, o2, n2: Math.max(0, 1 - o2)}, r.m, r.typed, r.st);
+  const xs = []; for (let x = 12; x <= 40; x++) xs.push(x);
+  const ys = xs.map(x => Math.round(at(x / 100).pExt * 100));
+  if (whatIfChart) whatIfChart.destroy();
+  const cur = {id: 'cur', afterDatasetsDraw(c) { const v = +$('#wiO2').value, xs2 = c.scales.x, ys2 = c.scales.y, ctx = c.ctx, px = xs2.getPixelForValue(String(v));
+    ctx.save(); ctx.strokeStyle = '#1A1A2E'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, ys2.top); ctx.lineTo(px, ys2.bottom); ctx.stroke();
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#9AA0A6'; ctx.lineWidth = 1; [30, 70].forEach(t => { const py = ys2.getPixelForValue(t); ctx.beginPath(); ctx.moveTo(xs2.left, py); ctx.lineTo(xs2.right, py); ctx.stroke(); }); ctx.restore(); }};
+  whatIfChart = new Chart($('#wiChart'), {type: 'line', plugins: [cur],
+    data: {labels: xs.map(String), datasets: [{data: ys, borderColor: '#2F6FB2', backgroundColor: '#2F6FB2', pointRadius: 0, borderWidth: 2.5, tension: 0.25}]},
+    options: {animation: false, plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => `${i[0].label}% O₂`, label: i => `${i.raw}% chance it goes out by itself`}}},
+      scales: {y: {min: 0, max: 100, title: {display: true, text: '% chance it goes out by itself'}}, x: {title: {display: true, text: 'Oxygen (%)'}, ticks: {maxTicksLimit: 8}}}}});
+  const upd = () => { const v = +$('#wiO2').value, a = at(v / 100);
+    $('#wiOut').textContent = v + '%';
+    const knock = r.o2 > 0.245 && v <= 21 ? `<span class="sm">Nitrogen knock-down to ${v}% O₂ needs about +${(r.e.psi * (r.o2 / (v / 100) - 1)).toFixed(1)} psi of N₂.</span>` : '';
+    $('#wiRes').innerHTML = `<span class="rk ${a.level.toLowerCase()}">${a.level}</span> <b>${Math.round(a.pExt * 100)}%</b> chance it goes out by itself at ${v}% O₂ ${knock}`;
+    whatIfChart.update('none'); };
+  $('#wiO2').addEventListener('input', upd); upd();
+}
+
+/* 5) printable emergency card */
+function printCard(r, A) {
+  const w = window.open('', '_blank');
+  if (!w) { alert('Please allow pop-ups to print the card.'); return; }
+  const col = {High: '#C62828', Medium: '#B26B00', Low: '#2E7D4F'}[r.level];
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Fire emergency card</title><style>
+    body{font-family:Arial,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0}.risk{border:4px solid ${col};color:${col};font-size:28px;font-weight:700;padding:8px 14px;display:inline-block;margin:10px 0}
+    .meta{font-size:13px;color:#333}ol{padding-left:20px}li{margin-bottom:8px;font-size:14px}li span{display:block;color:#444;font-size:12.5px}.foot{font-size:11px;color:#666;margin-top:14px;border-top:1px solid #ccc;padding-top:6px}</style></head><body>
+    <h1>FIRE EMERGENCY CARD</h1>
+    <div class="meta">${esc(r.e.name)} · ${r.e.psi.toFixed(1)} psi · ${(r.o2 * 100).toFixed(1)}% O₂ · ${esc(r.e.g)}<br>Material: <b>${esc(r.m ? r.m.name : r.typed)}</b> (${esc(r.st)}${r.m ? ', ' + esc(r.m.family) : ''})</div>
+    <div class="risk">RISK: ${r.level.toUpperCase()}</div>
+    <div class="meta">Chance the fire goes out by itself: ${Math.round(r.pExt * 100)}% (${esc(r.basis)}) · Data coverage: ${covLabel(r.cov)}</div>
+    <ol>${A.map(([t, x]) => `<li><b>${esc(t)}</b><span>${esc(x)}</span></li>`).join('')}</ol>
+    <div class="foot">Flame in Freefall · NASA Space Apps 2026 · Based on NASA PSI data (FLEX, CFI-G, Saffire) and the ISS Warn–Gather–Work response. Screening tool, not a certified flight procedure. Printed ${new Date().toISOString().slice(0, 10)}.</div>
+    <script>window.onload=()=>window.print()<\/script></body></html>`);
+  w.document.close();
 }
 })();

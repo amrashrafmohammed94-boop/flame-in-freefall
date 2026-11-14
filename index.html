@@ -23,6 +23,7 @@
     <button role="tab" data-tab="habitat">2 · Habitat ranking</button>
     <button role="tab" data-tab="oxygen">3 · Oxygen risk</button>
     <button role="tab" data-tab="insights">4 · Safety insights</button>
+    <button role="tab" data-tab="about">About</button>
   </nav>
 </header>
 
@@ -153,6 +154,40 @@
         <li>Abercromby, NASA decompression sickness strategic plan, AsMA 2022 (NTRS 20220005709).</li>
       </ul>
       <p class="note">Rover and Mars atmospheres are assumed equal to the Moon-base exploration atmosphere. FLEX test C11M201 (pressure recorded as 0) is excluded.</p>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="panel about">
+    <div class="intro"><h2>About Flame in Freefall</h2>
+      <p>A fire-risk tool for crews in spacecraft, Moon and Mars habitats, built on NASA microgravity combustion data for the NASA Space Apps Challenge 2026.</p></div>
+    <div class="card">
+      <h3>The problem</h3>
+      <p>Future Moon bases are expected to run at about 8.2 psi and 34% oxygen, more flammable than the ISS. NASA has decades of fire tests in space, but the results sit in many separate tables, and no public test has burned a real material in Moon-base air.</p>
+      <h3>What the tool does</h3>
+      <ol>
+        <li><b>Where are you?</b> Choose a habitat: pressure, oxygen, nitrogen and gravity appear automatically.</li>
+        <li><b>What could burn?</b> Type a material: its family and usual state appear; you confirm solid, liquid or gas.</li>
+        <li><b>Assessment:</b> chance the fire goes out by itself, how long it can burn, a Low / Medium / High risk, how well NASA data covers the case, and a Warn–Gather–Work response with the right extinguishing agent.</li>
+        <li><b>Explore:</b> compare one material across all habitats, move an oxygen slider, and print an emergency card.</li>
+      </ol>
+      <h3>Data</h3>
+      <p>All 20 public experiment tables from 18 ISS combustion investigations in NASA Physical Science Informatics (PSI), downloaded 14 Nov 2026 (CC0). Main sources: FLEX (PSI-69, DOI 10.60555/mbq8-0451), ACME CFI-G (PSI-159, DOI 10.60555/cyt1-kh64), Saffire-I/II (PSI-98/99), BASS-II (PSI-25), SAME/SAME-R (PSI-102/101). Habitat atmospheres: NASA "Moon to Mars: Exploration Atmosphere" (2024) and NASA decompression-sickness plan (2022). Fire response: NASA "Emergency Operations History" (SpaceOps 2023).</p>
+      <h3>How the prediction works (AI / machine learning)</h3>
+      <ul>
+        <li><b>Liquids:</b> k-nearest-neighbours over 273 FLEX tests: the 15 tests closest in oxygen and pressure (same fuel class) give the chance of self-extinction and the burn time. A logistic-regression model on the same data reaches a cross-validated ROC-AUC of 0.85.</li>
+        <li><b>Gases:</b> CFI-G gas-flame results by oxygen level and pressure band.</li>
+        <li><b>Solids:</b> material class from Saffire, BASS and SAME (spreads, slow, no spread, smoke) – an estimate, because NASA has no solid-material data at Moon-base air.</li>
+        <li><b>Risk:</b> ≥70% chance of self-extinction = Low, 30–70% = Medium, &lt;30% = High; one level higher when the case is outside NASA data or in partial gravity; pure oxygen and lithium batteries = High.</li>
+      </ul>
+      <h3>Limits</h3>
+      <ul>
+        <li>Droplet and burner flames show the trend, not the size of a real cabin fire.</li>
+        <li>No partial-gravity or spacesuit-condition fire data exists yet (LUCI and FM2 are planned).</li>
+        <li>Rover and Mars atmospheres are assumed equal to the Moon base. Screening tool, not a certified procedure.</li>
+      </ul>
+      <h3>Use of AI in building this project</h3>
+      <p>The team used Claude (Anthropic) as an assistant to download and analyse the NASA tables, draft the risk logic and write the website code. All findings were checked against the original NASA data, and the risk limits and safety actions were reviewed by the team's fire-safety engineer.</p>
     </div>
   </section>
 </main>
