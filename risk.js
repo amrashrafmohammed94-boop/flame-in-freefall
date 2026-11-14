@@ -289,10 +289,10 @@ function setupWhatIf(r) {
   const ys = xs.map(x => Math.round(at(x / 100).pExt * 100));
   if (whatIfChart) whatIfChart.destroy();
   const cur = {id: 'cur', afterDatasetsDraw(c) { const v = +$('#wiO2').value, xs2 = c.scales.x, ys2 = c.scales.y, ctx = c.ctx, px = xs2.getPixelForValue(String(v));
-    ctx.save(); ctx.strokeStyle = '#1A1A2E'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, ys2.top); ctx.lineTo(px, ys2.bottom); ctx.stroke();
-    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#9AA0A6'; ctx.lineWidth = 1; [30, 70].forEach(t => { const py = ys2.getPixelForValue(t); ctx.beginPath(); ctx.moveTo(xs2.left, py); ctx.lineTo(xs2.right, py); ctx.stroke(); }); ctx.restore(); }};
+    ctx.save(); ctx.strokeStyle = '#E8ECF8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, ys2.top); ctx.lineTo(px, ys2.bottom); ctx.stroke();
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = '#5E6A8E'; ctx.lineWidth = 1; [30, 70].forEach(t => { const py = ys2.getPixelForValue(t); ctx.beginPath(); ctx.moveTo(xs2.left, py); ctx.lineTo(xs2.right, py); ctx.stroke(); }); ctx.restore(); }};
   whatIfChart = new Chart($('#wiChart'), {type: 'line', plugins: [cur],
-    data: {labels: xs.map(String), datasets: [{data: ys, borderColor: '#2F6FB2', backgroundColor: '#2F6FB2', pointRadius: 0, borderWidth: 2.5, tension: 0.25}]},
+    data: {labels: xs.map(String), datasets: [{data: ys, borderColor: '#5AA9FF', backgroundColor: '#5AA9FF', pointRadius: 0, borderWidth: 2.5, tension: 0.25}]},
     options: {animation: false, plugins: {legend: {display: false}, tooltip: {callbacks: {title: i => `${i[0].label}% O₂`, label: i => `${i.raw}% chance it goes out by itself`}}},
       scales: {y: {min: 0, max: 100, title: {display: true, text: '% chance it goes out by itself'}}, x: {title: {display: true, text: 'Oxygen (%)'}, ticks: {maxTicksLimit: 8}}}}});
   const upd = () => { const v = +$('#wiO2').value, a = at(v / 100);
@@ -305,19 +305,19 @@ function setupWhatIf(r) {
 
 /* 5) printable emergency card */
 function printCard(r, A) {
-  const w = window.open('', '_blank');
-  if (!w) { alert('Please allow pop-ups to print the card.'); return; }
+  // In-page print (no pop-up): build the card, show only it while printing
   const col = {High: '#C62828', Medium: '#B26B00', Low: '#2E7D4F'}[r.level];
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Fire emergency card</title><style>
-    body{font-family:Arial,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0}.risk{border:4px solid ${col};color:${col};font-size:28px;font-weight:700;padding:8px 14px;display:inline-block;margin:10px 0}
-    .meta{font-size:13px;color:#333}ol{padding-left:20px}li{margin-bottom:8px;font-size:14px}li span{display:block;color:#444;font-size:12.5px}.foot{font-size:11px;color:#666;margin-top:14px;border-top:1px solid #ccc;padding-top:6px}</style></head><body>
-    <h1>FIRE EMERGENCY CARD</h1>
-    <div class="meta">${esc(r.e.name)} · ${r.e.psi.toFixed(1)} psi · ${(r.o2 * 100).toFixed(1)}% O₂ · ${esc(r.e.g)}<br>Material: <b>${esc(r.m ? r.m.name : r.typed)}</b> (${esc(r.st)}${r.m ? ', ' + esc(r.m.family) : ''})</div>
-    <div class="risk">RISK: ${r.level.toUpperCase()}</div>
-    <div class="meta">Chance the fire goes out by itself: ${Math.round(r.pExt * 100)}% (${esc(r.basis)}) · Data coverage: ${covLabel(r.cov)}</div>
-    <ol>${A.map(([t, x]) => `<li><b>${esc(t)}</b><span>${esc(x)}</span></li>`).join('')}</ol>
-    <div class="foot">Flame in Freefall · NASA Space Apps 2026 · Based on NASA PSI data (FLEX, CFI-G, Saffire) and the ISS Warn–Gather–Work response. Screening tool, not a certified flight procedure. Printed ${new Date().toISOString().slice(0, 10)}.</div>
-    <script>window.onload=()=>window.print()<\/script></body></html>`);
-  w.document.close();
+  let card = document.getElementById('printCard');
+  if (!card) { card = document.createElement('div'); card.id = 'printCard'; document.body.appendChild(card); }
+  card.innerHTML = `<h1>FIRE EMERGENCY CARD</h1>
+    <div class="pmeta">${esc(r.e.name)} · ${r.e.psi.toFixed(1)} psi · ${(r.o2 * 100).toFixed(1)}% O₂ · ${esc(r.e.g)}<br>Material: <b>${esc(r.m ? r.m.name : r.typed)}</b> (${esc(r.st)}${r.m ? ', ' + esc(r.m.family) : ''})</div>
+    <div class="prisk" style="border-color:${col};color:${col}">RISK: ${r.level.toUpperCase()}</div>
+    <div class="pmeta">Chance the fire goes out by itself: ${Math.round(r.pExt * 100)}% (${esc(r.basis)}) · Data coverage: ${covLabel(r.cov)}</div>
+    <ul class="plist">${A.map(([t, x]) => `<li><b>${esc(t)}</b><span>${esc(x)}</span></li>`).join('')}</ul>
+    <div class="pfoot">Flame in Freefall · NASA Space Apps 2026 · Based on NASA PSI data (FLEX, CFI-G, Saffire) and the ISS Warn–Gather–Work response. Screening tool, not a certified flight procedure. Printed ${new Date().toISOString().slice(0, 10)}.</div>`;
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(() => { window.print(); setTimeout(done, 1000); }, 50);
 }
 })();

@@ -4,18 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flame in Freefall</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <header class="top">
   <div class="brand">
     <div class="logo" aria-hidden="true">
-      <svg viewBox="0 0 32 32" width="28" height="28"><circle cx="16" cy="17" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="17" r="4.5" fill="currentColor"/></svg>
+      <svg viewBox="0 0 64 64" width="46" height="46">
+        <defs><radialGradient id="fl" cx="50%" cy="60%" r="55%"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".45" stop-color="#FF9A3C"/><stop offset="1" stop-color="#FF4D2E" stop-opacity=".15"/></radialGradient></defs>
+        <ellipse cx="32" cy="34" rx="28" ry="11" fill="none" stroke="#5AA9FF" stroke-width="2" opacity=".75" transform="rotate(-18 32 34)"/>
+        <circle cx="32" cy="32" r="14" fill="url(#fl)"/>
+        <circle cx="32" cy="33" r="6" fill="#FFF4D6"/>
+        <circle cx="57" cy="24" r="2.6" fill="#E8ECF8"/>
+        <circle cx="9" cy="12" r="1.2" fill="#E8ECF8" opacity=".8"/><circle cx="50" cy="54" r="1" fill="#E8ECF8" opacity=".7"/>
+      </svg>
     </div>
     <div>
       <h1>Flame in Freefall</h1>
-      <p class="tag">Fire safety insights from NASA microgravity combustion data</p>
+      <p class="tag">Fire-risk intelligence for spacecraft, Moon and Mars habitats · built on NASA microgravity combustion data</p>
     </div>
+    <div class="badge">NASA Space Apps Challenge 2026<span>Data: NASA Physical Sciences Informatics</span></div>
   </div>
   <nav class="tabs" role="tablist">
     <button role="tab" data-tab="risk" aria-selected="true">Fire risk check</button>
@@ -195,8 +205,8 @@
 <footer>Built for NASA Space Apps Challenge 2026 · Data: NASA Physical Science Informatics</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="data.js?v=5"></script>
-<script src="app.js?v=5"></script>
-<script src="risk.js?v=5"></script>
+<script src="data.js?v=7"></script>
+<script src="app.js?v=7"></script>
+<script src="risk.js?v=7"></script>
 </body>
 </html>

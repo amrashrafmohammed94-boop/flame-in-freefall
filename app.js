@@ -1,8 +1,9 @@
 /* Flame in Freefall dashboard – plain JS, data from data/data.js (window.DATA) */
 const D = window.DATA;
-const C = { accent:'#D9480F', blue:'#2F6FB2', green:'#2E7D4F', gray:'#9AA0A6', ink:'#1A1A2E', muted:'#5B5F6B' };
+const C = { accent:'#FF6B2C', blue:'#5AA9FF', green:'#3DDC97', gray:'#5E6A8E', ink:'#E8ECF8', muted:'#9AA6C7' };
 Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
 Chart.defaults.color = C.muted;
+Chart.defaults.borderColor = 'rgba(140,165,230,.15)';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
